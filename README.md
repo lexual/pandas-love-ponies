@@ -10,6 +10,7 @@ relevant code:
     pp/df_to_dj/tests.py # example of how to call .to_django()
 
 Use case.
+
     df = pd.DataFrame(some_data)
     df.to_django(SomeModel)
 

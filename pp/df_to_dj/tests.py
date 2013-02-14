@@ -18,7 +18,7 @@ pd.DataFrame.to_django = utils.to_django
 class SimpleTest(TestCase):
     def test_basics(self):
         """
-        This is just a way to demo things are waying.
+        This is just a way to demo things are working.
         """
         # TODO: actually write test-cases.
         # TODO: write better example data & model.

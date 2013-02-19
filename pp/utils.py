@@ -51,7 +51,11 @@ def to_django(self, model, update=False, force_save=False,
             elif has_default:
                 df[field.name].fillna(field.default, inplace=True)
             elif isinstance(field, fields.CharField):
-                df[field.name].fillna('', inplace=True)
+                if all(df[field.name].isnull()):
+                    df[field.name] = ''
+                else:
+                    df[field.name].fillna('', inplace=True)
+
     objs = []
     # iterate through DataFrame, creating/updating Django model instances.
     for _, row in df.iterrows():

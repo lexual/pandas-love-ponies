@@ -1,4 +1,4 @@
-from django.db.models import fields
+__version__ = "0.1.0"
 
 
 def to_django(self, model, update=False, force_save=False,
@@ -27,6 +27,7 @@ def to_django(self, model, update=False, force_save=False,
     Will also attempt to use names of indexes as well as names of columns in
     the DataFrame.
     """
+    from django.db.models import fields
     # don't want to edit the df we were given.
     df = self.copy()
     do_bulk_create = not update and not force_save

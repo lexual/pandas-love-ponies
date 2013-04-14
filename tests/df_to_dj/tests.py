@@ -8,11 +8,11 @@ Replace this with more appropriate tests for your application.
 from django.test import TestCase
 import pandas as pd
 import numpy as np
-import utils
+import pandas_love_ponies as plp
 from models import MyModel
 
 # monkey patch.
-pd.DataFrame.to_django = utils.to_django
+pd.DataFrame.to_django = plp.to_django
 
 
 class SimpleTest(TestCase):

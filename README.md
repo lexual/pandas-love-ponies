@@ -17,3 +17,5 @@ Use case.
     from myapp.models import Sale
     df = pd.read_csv('sales.csv')
     df.to_django(Sale)
+
+LICENSE: BSD.

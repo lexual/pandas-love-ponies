@@ -1,3 +1,5 @@
+import math
+
 __version__ = "0.1.0"
 
 
@@ -33,14 +35,14 @@ def to_django(self, model, update=False, force_save=False,
     do_bulk_create = not update and not force_save
 
     obj = model()
-    field_names = []
+    relevant_fields = []
     # Create list of columns in DataFrame that are also in the Django model.
     # Handle NaN's by setting to null if appropriate, or using the default.
     for field in obj._meta.fields:
         if field.name == 'id':
             continue
         if field.name in df or field.name in df.index.names:
-            field_names.append(field.name)
+            relevant_fields.append(field)
             if field.name in df.index.names:
                 try:
                     # multi-index
@@ -52,8 +54,11 @@ def to_django(self, model, update=False, force_save=False,
             has_default = ((field.default is not None) and
                           (field.default is not fields.NOT_PROVIDED))
             if field.null:
-                nulls = df[field.name].isnull()
-                df[field.name][nulls] = None
+                if not (isinstance(field, fields.IntegerField) or
+                                        isinstance(field, fields.FloatField)):
+                    nulls = df[field.name].isnull()
+                    if nulls.any():
+                        df[field.name][nulls] = None
             elif has_default:
                 df[field.name].fillna(field.default, inplace=True)
             elif isinstance(field, fields.CharField):
@@ -71,8 +76,12 @@ def to_django(self, model, update=False, force_save=False,
             unique_togethers = model._meta.unique_together[0]
             kwargs = {field: row[field] for field in unique_togethers}
             obj, _ = model.objects.get_or_create(**kwargs)
-        for field_name in field_names:
-            setattr(obj, field_name, row[field_name])
+        for field in relevant_fields:
+            if (isinstance(field, fields.IntegerField) or
+                                        isinstance(field, fields.FloatField)):
+                if field.null and math.isnan(row[field.name]):
+                    row[field.name] = None
+            setattr(obj, field.name, row[field.name])
         if do_bulk_create:
             objs.append(obj)
             if len(objs) == bulk_create_size:

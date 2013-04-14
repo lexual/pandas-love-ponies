@@ -42,7 +42,12 @@ def to_django(self, model, update=False, force_save=False,
         if field.name in df or field.name in df.index.names:
             field_names.append(field.name)
             if field.name in df.index.names:
-                df[field.name] = df.index.get_level_values(field.name)
+                try:
+                    # multi-index
+                    df[field.name] = df.index.get_level_values(field.name)
+                except AttributeError:
+                    # non-multi-index
+                    df[field.name] = df.index.values
 
             has_default = ((field.default is not None) and
                           (field.default is not fields.NOT_PROVIDED))

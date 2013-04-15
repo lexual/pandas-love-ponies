@@ -1,10 +1,11 @@
 import math
+import pytz
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def to_django(self, model, update=False, force_save=False,
-              bulk_create_size=1000):
+              bulk_create_size=1000, utc_to_tz=None):
     """
     Write DataFrame to SQL database via Django model.
 
@@ -23,6 +24,8 @@ def to_django(self, model, update=False, force_save=False,
         if 'update' is False (default), then will attempt to do a bulk_create
         which is much faster than continually calling Django model's save()
         method.
+    utc_to_tz: str, default None
+        if set, will conver datetimes from utc to this timezone.
 
     Note
     ----
@@ -33,6 +36,14 @@ def to_django(self, model, update=False, force_save=False,
     # don't want to edit the df we were given.
     df = self.copy()
     do_bulk_create = not update and not force_save
+    if utc_to_tz:
+        def localize_datetime(x):
+            utz_tz = pytz.timezone('UTC')
+            local_tz = pytz.timezone(utc_to_tz)
+            d = utz_tz.localize(x)
+            d = d.astimezone(local_tz)
+            # make naive.
+            return d.replace(tzinfo=None)
 
     obj = model()
     relevant_fields = []
@@ -50,6 +61,8 @@ def to_django(self, model, update=False, force_save=False,
                 except AttributeError:
                     # non-multi-index
                     df[field.name] = df.index.values
+            if utc_to_tz and isinstance(field, fields.DateTimeField):
+                df[field.name] = df[field.name].map(localize_datetime)
 
             has_default = ((field.default is not None) and
                           (field.default is not fields.NOT_PROVIDED))

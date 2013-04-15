@@ -1,7 +1,7 @@
 import math
 import pytz
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def to_django(self, model, update=False, force_save=False,
@@ -88,7 +88,11 @@ def to_django(self, model, update=False, force_save=False,
         else:
             unique_togethers = model._meta.unique_together[0]
             kwargs = {field: row[field] for field in unique_togethers}
-            obj, _ = model.objects.get_or_create(**kwargs)
+            try:
+                obj = model.objects.get(**kwargs)
+            except model.DoesNotExist:
+                obj = model()
+
         for field in relevant_fields:
             if (isinstance(field, fields.IntegerField) or
                                         isinstance(field, fields.FloatField)):

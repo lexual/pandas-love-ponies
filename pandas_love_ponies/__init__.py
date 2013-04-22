@@ -1,4 +1,3 @@
-import math
 import pandas as pd
 import pytz
 
@@ -99,7 +98,7 @@ def to_django(self, model, update=False, force_save=False,
         for field in relevant_fields:
             if (isinstance(field, fields.IntegerField) or
                                         isinstance(field, fields.FloatField)):
-                if field.null and math.isnan(row[field.name]):
+                if field.null and pd.isnull(row[field.name]):
                     row[field.name] = None
             setattr(obj, field.name, row[field.name])
         if do_bulk_create:

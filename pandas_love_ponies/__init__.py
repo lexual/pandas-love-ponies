@@ -1,7 +1,8 @@
 import math
+import pandas as pd
 import pytz
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 def to_django(self, model, update=False, force_save=False,
@@ -38,6 +39,8 @@ def to_django(self, model, update=False, force_save=False,
     do_bulk_create = not update and not force_save
     if utc_to_tz:
         def localize_datetime(x):
+            if x is None or isinstance(x, pd.tslib.NaTType):
+                return None
             utz_tz = pytz.timezone('UTC')
             local_tz = pytz.timezone(utc_to_tz)
             d = utz_tz.localize(x)

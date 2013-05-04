@@ -1,11 +1,12 @@
 import pandas as pd
 import pytz
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 
 def to_django(self, model, update=False, force_save=False,
-              bulk_create_size=1000, utc_to_tz=None):
+              bulk_create_size=1000, utc_to_tz=None, write_to_db=True,
+              return_objects=False):
     """
     Write DataFrame to SQL database via Django model.
 
@@ -26,6 +27,13 @@ def to_django(self, model, update=False, force_save=False,
         method.
     utc_to_tz: str, default None
         if set, will conver datetimes from utc to this timezone.
+    write_to_db: boolean, default True
+        Whether to actually write to the database or not.
+    return_objects: boolean, default False
+        When True, will return a list of the django objects created from the
+        dataframe.
+        Defaults to False so that we don't eat memory when dataframe is large.
+
 
     Note
     ----
@@ -83,6 +91,8 @@ def to_django(self, model, update=False, force_save=False,
                     df[field.name].fillna('', inplace=True)
 
     objs = []
+    if return_objects:
+        all_objs = []
     # iterate through DataFrame, creating/updating Django model instances.
     for _, row in df.iterrows():
         if not update:
@@ -104,9 +114,17 @@ def to_django(self, model, update=False, force_save=False,
         if do_bulk_create:
             objs.append(obj)
             if len(objs) == bulk_create_size:
-                model.objects.bulk_create(objs)
+                if write_to_db:
+                    model.objects.bulk_create(objs)
                 objs = []
-        else:
+        elif write_to_db:
             obj.save()
-    if do_bulk_create:
+        if return_objects:
+            all_objs.append(obj)
+    if do_bulk_create and write_to_db:
         model.objects.bulk_create(objs)
+
+    if return_objects:
+        return all_objs
+    else:
+        return None

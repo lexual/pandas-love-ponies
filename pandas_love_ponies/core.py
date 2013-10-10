@@ -2,9 +2,107 @@ import pandas as pd
 import pytz
 
 
+class PandasLovesPoniesException(Exception):
+    pass
+
+
+def _has_default(field):
+    """
+    Does the field have the default attribute set.
+    """
+    from django.db.models import fields
+    has_default = ((field.default is not None) and
+                  (field.default is not fields.NOT_PROVIDED))
+    return has_default
+
+def _column_getter(df, col):
+    """
+    Handles getting columns, whether they be true columns, or in index.
+    """
+    if col in df:
+        return df[col]
+    elif col in df.index.names:
+        try:
+            # multi-index
+            values = df.index.get_level_values(col)
+        except AttributeError:
+            # non-multi-index
+            values = df.index.values
+        return pd.Series(values)
+
+
+def validate_for_django(self, model):
+    """
+    Validate the dataframe is valid to be written to the Django model.
+    """
+    if len(self) == 0:
+        return True
+    _test_no_missing_columns(self, model)
+    _test_dates_arent_strings(self, model)
+    _test_invalid_nulls(self, model)
+    return True
+
+
+def _test_no_missing_columns(self, model):
+    """
+    Are there any necessary columns, that don't exist in the dataframe?
+    """
+    obj = model()
+    for field in obj._meta.fields:
+        if field.name == 'id':
+            continue
+        if _has_default(field):
+            continue
+        if field.name not in self and field.name not in self.index.names:
+            raise PandasLovesPoniesException('missing column: %s' % field.name)
+    return True
+
+
+def _test_dates_arent_strings(self, model):
+    from django.db.models import fields
+    def is_date_based_field(f):
+        if isinstance(f, fields.DateTimeField):
+            return True
+        elif isinstance(f, fields.DateField):
+            return True
+        else:
+            return False
+    obj = model()
+    date_fields = [x.name for x in obj._meta.fields
+                   if is_date_based_field(x) and x.name != 'id']
+    for date_field in date_fields:
+        date_series = _column_getter(self, date_field)
+        date_value = date_series.values[0]
+        if isinstance(date_value, str):
+            error_msg = 'date column %s is strings' % date_field
+            raise PandasLovesPoniesException(error_msg)
+        continue
+    return True
+
+
+def _test_invalid_nulls(self, model):
+    """
+    If series contains nulls, but django field doesn't allow it.
+
+    Allows if default attribute set, as these will be filled in.
+    """
+    from django.db.models import fields
+    obj = model()
+    nonnull_fields = [x for x in obj._meta.fields
+                    if not x.null and x.name != 'id']
+    for field in nonnull_fields:
+        if _has_default(field):
+            continue
+        nonnull_cols_series = _column_getter(self, field.name)
+        if nonnull_cols_series.isnull().any():
+            error_msg = '%s column contains nulls' % field.name
+            raise PandasLovesPoniesException(error_msg)
+    return True
+
+
 def to_django(self, model, update=False, force_save=False,
               bulk_create_size=1000, utc_to_tz=None, write_to_db=True,
-              return_objects=False):
+              return_objects=False, validate=False):
     """
     Write DataFrame to SQL database via Django model.
 
@@ -31,6 +129,8 @@ def to_django(self, model, update=False, force_save=False,
         When True, will return a list of the django objects created from the
         dataframe.
         Defaults to False so that we don't eat memory when dataframe is large.
+    validate: boolean, default False
+        When true, run validate_for_django() beforehand.
 
 
     Note
@@ -39,6 +139,8 @@ def to_django(self, model, update=False, force_save=False,
     the DataFrame.
     """
     from django.db.models import fields
+    if validate:
+        validate_for_django(self, model)
     # don't want to edit the df we were given.
     df = self.copy()
     do_bulk_create = not update and not force_save
@@ -72,15 +174,13 @@ def to_django(self, model, update=False, force_save=False,
             if utc_to_tz and isinstance(field, fields.DateTimeField):
                 df[field.name] = df[field.name].map(localize_datetime)
 
-            has_default = ((field.default is not None) and
-                          (field.default is not fields.NOT_PROVIDED))
             if field.null:
                 if not (isinstance(field, fields.IntegerField) or
                                         isinstance(field, fields.FloatField)):
                     nulls = df[field.name].isnull()
                     if nulls.any():
                         df[field.name][nulls] = None
-            elif has_default:
+            elif _has_default(field):
                 df[field.name].fillna(field.default, inplace=True)
             elif isinstance(field, fields.CharField):
                 if all(df[field.name].isnull()):

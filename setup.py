@@ -3,7 +3,7 @@ from setuptools import setup
 
 with open('requirements.txt') as f:
     requires = [l.rstrip() for l in f if not l.startswith('#')]
-    version = '0.5.0'
+    version = '0.6.0'
 
 
 setup(

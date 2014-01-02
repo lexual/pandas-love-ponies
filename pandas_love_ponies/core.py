@@ -196,8 +196,13 @@ def to_django(self, model, update=False, force_save=False,
         if not update:
             obj = model()
         else:
-            unique_togethers = model._meta.unique_together[0]
-            kwargs = {field: row[field] for field in unique_togethers}
+            try:
+                unique_togethers = model._meta.unique_together[0]
+                kwargs = {field: row[field] for field in unique_togethers}
+            except IndexError:
+                for field in model._meta.fields:
+                    if field.primary_key:
+                        kwargs = {field.name: row[field.name]}
             try:
                 obj = model.objects.get(**kwargs)
             except model.DoesNotExist:

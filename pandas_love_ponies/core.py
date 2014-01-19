@@ -176,7 +176,6 @@ def to_django(self, model, update=False, force_save=False,
 
             if field.null:
                 if not (isinstance(field, fields.IntegerField) or
-                                isinstance(field, fields.related.ForeignKey) or
                                 isinstance(field, fields.FloatField)):
                     nulls = df[field.name].isnull()
                     if nulls.any():
@@ -211,6 +210,7 @@ def to_django(self, model, update=False, force_save=False,
 
         for field in relevant_fields:
             if (isinstance(field, fields.IntegerField) or
+                                isinstance(field, fields.related.ForeignKey) or
                                         isinstance(field, fields.FloatField)):
                 if field.null and pd.isnull(row[field.name]):
                     row[field.name] = None

@@ -175,11 +175,7 @@ def to_django(self, model, update=False, force_save=False,
                 df[field.name] = df[field.name].map(localize_datetime)
 
             if field.null:
-                if not (isinstance(field, fields.IntegerField) or
-                                isinstance(field, fields.FloatField)):
-                    nulls = df[field.name].isnull()
-                    if nulls.any():
-                        df[field.name][nulls] = None
+                pass
             elif _has_default(field):
                 df[field.name].fillna(field.default, inplace=True)
             elif isinstance(field, fields.CharField):
@@ -209,12 +205,10 @@ def to_django(self, model, update=False, force_save=False,
                 obj = model()
 
         for field in relevant_fields:
-            if (isinstance(field, fields.IntegerField) or
-                                isinstance(field, fields.related.ForeignKey) or
-                                        isinstance(field, fields.FloatField)):
-                if field.null and pd.isnull(row[field.name]):
-                    row[field.name] = None
-            setattr(obj, field.name, row[field.name])
+            if field.null and pd.isnull(row[field.name]):
+                setattr(obj, field.name, None)
+            else:
+                setattr(obj, field.name, row[field.name])
         if do_bulk_create:
             objs.append(obj)
             if len(objs) == bulk_create_size:
